@@ -1,2 +1,2 @@
 # grandis
-Yet another lightweight JS ffrontend framework.
+Yet another lightweight JS frontend framework.
