@@ -39,7 +39,7 @@ var HTTP_Request =
                elem.setAttribute('type', 'text/javascript');
                elem.setAttribute('src', url);
                elem.setAttribute('id', eid);
-               $('head')[0].appendChild(elem);
+               $('head').appendChild(elem);
                return elem;
              };
            },
