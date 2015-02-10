@@ -23,6 +23,19 @@ var HTTP_Request =
          {
            'private _obj' : 'undefined',
 
+           'private _result' : 'undefined',
+
+           'private ajax_ready' : false,
+
+           'private gen_url' : function (url) {
+             if (!this.use_cache) {
+               var conj = (url.indexOf('?') == -1) ? '?' : '&';
+               var time_param = '_=' + Date.now();
+               url += conj + time_param;
+             }
+             return url;
+           },
+
            'private init_jsonp' : function () {
              var elem = document.createElement('script');
              var eid = gensym('jsonp-script-');
@@ -30,22 +43,64 @@ var HTTP_Request =
              // NOTE: jsonp won't send data in POST. Because the data in GET
              //       was merged to url, so 'data' here will be ingored.
              // NOTE: 'method' is useless for jsonp, so it's ingored too.
-             return function (url, method, data) {
-               if (!this.use_cache) {
-                 var conj = (url.indexOf('?') == -1) ? '?' : '&';
-                 var time_param = '_=' + Date.now();
-                 url += conj + time_param;
-               }
+             return function (url, method, pdata) {
+               var final_url = this.gen_url(url);
                elem.setAttribute('type', 'text/javascript');
-               elem.setAttribute('src', url);
+               elem.setAttribute('src', final_url);
                elem.setAttribute('id', eid);
                $('head').appendChild(elem);
                return elem;
              };
            },
 
+           // NOTE: We must pass a callback (here named 'proc') in, since AJAX
+           //       is async, so it needs a callback approach natually.
+           'private init_ajax' : function (proc) {
+             if (window.XMLHttpRequest) {
+               // code for IE7+, Firefox, Chrome, Opera, Safari
+               var ajax = new XMLHttpRequest();
+             } else {
+               // code for IE6, IE5
+               $('html').innerHTML = '<p>Sorry, I don\'t want to suppport IE6 or IE5, please upgrade your browser!</p';
+               throw Error("Let me halt here!");
+             }
+             ajax.onreadystatechange = function() {
+               if (ajax.readyState==4 && ajax.status==200) {
+                 this._result = ajax.responseText;
+                 this.ajax_ready = true;
+                 proc && proc(this._result);
+               } else {
+                 this._result = 'undefined';
+                 this.ajax_ready = false;
+               }
+             };
+             
+             return function (url, method, pdata) {
+               var final_url = this.gen_url(url);
+               this._result = 'undefined';
+               this.ajax_ready = false;
+               ajax.open(method, url, true);
+               if (method === "POST")
+                 ajax.send(data2url(pdata));
+               else
+                 ajax.send();
+               return 'Waiting for async result';
+             };
+           },
+
            'private clean_jsonp_tag' : function (id) {
-             return $('head')[0].removeChild(id);
+             return $('head').removeChild(id);
+           },
+
+           'public is_ready' : function () {
+             return this.ajax_ready;
+           },
+
+           'public get_result' : function () {
+             if (this.ajax_ready)
+               return this._result;
+             else
+               return false;
            },
 
            'public use_cache' : false,
@@ -58,10 +113,10 @@ var HTTP_Request =
              return this._obj(full_url, method, pdata);
            },
 
-           'public __construct' : function (mode, use_cache) {
+           'public __construct' : function (mode, callback, use_cache) {
              this.use_cache = is_defined(use_cache);
              switch (mode) {
-             case 'ajax' : this._obj = this.init_ajax(); break;
+             case 'ajax' : this._obj = this.init_ajax(callback); break;
              case 'jsonp' : this._obj = this.init_jsonp (); break;
              default : throw Error('HTTP_Request: invalid mode ' + mode);
              }
@@ -94,8 +149,8 @@ var HTTP =
 
            'private _req' : 'undefined',
 
-           'private _init_req' : function () {
-             this._req = HTTP_Request (this.mode);
+           'private _init_req' : function (callback, use_cache) {
+             this._req = HTTP_Request (this.mode, callback, use_cache);
            },
 
            'private do_request' : function (method, url, data) {
@@ -104,8 +159,16 @@ var HTTP =
                throw Error('HTTP: method "' + method + '" is not supported!');
              return handler(this._req, url, method, data);          
            },
+
+           'public set_cache' : function (val) {
+             this._req.use_cache = val;
+           },
+
+           'public use_cache' : function () {
+             return this._req.use_cache;
+           },
            
-           'public __construct' : function (mode) {
+           'public __construct' : function (mode, callback, use_cache) {
              if (typeof mode === 'undefined')
                return;
              else if ( this.is_valid_mode (mode) )
@@ -113,9 +176,13 @@ var HTTP =
              else
                throw Error('HTTP init: Invalid mode "' + mode + '"');
              
-             this._init_req();
+             this._init_req(callback, use_cache);
            },
            
+           'public is_ready' : function () {
+             return this._req.is_ready();
+           },
+
            'public get_mode' : function () { return this.mode; },
            
            //'public request' : 
