@@ -16,19 +16,4 @@
   If not, see <http://www.gnu.org/licenses/>.
 */
 
-$ = function (lst) {
-  var gen_elems = function (p, x, i, arr) {
-    var name = x.match(/^([#.]?)(\w+)/);
-    var ret;
-    switch (name[1]) {
-    case '#': ret = p.getElementById(name[2]); break;
-    case '.': ret = p.getElementsByClassName(name[2]); break;
-    case '': ret = p.getElementsByTagName(name[2]); break;
-    default: throw('gen_elems in $: Invalid pattern!' + x);
-    }
-    return ret;
-  }
-  var tokens = lst.match(/[.#]?\w+/g);
-  return tokens.reduce(gen_elems, document);
-}
-
+$ = function(tag) { return document.querySelector(tag); };
