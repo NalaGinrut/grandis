@@ -26,7 +26,16 @@ var Geo =
            'private _last' : 'undefined',
 
            'private getpos_err' : function (err) {
-             alert('Geo: error when trying to get current position! ' + err);
+             switch(err.code) {
+             case err.PERMISSION_DENIED:
+               alert("Geo error: user denied the request for Geolocation."); break;
+             case err.POSITION_UNAVAILABLE:
+               alert("Geo error: location information is unavailable."); break;
+             case err.TIMEOUT:
+               alert("Geo error: the request to get user location timed out."); break;
+             default:
+               alert("Geo error: an unknown error occurred.");
+             }
            },
              
            'public find_me' : function (callback) {
