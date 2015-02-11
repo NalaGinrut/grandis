@@ -42,7 +42,11 @@ var Geo =
              this._obj.getCurrentPosition(callback, this.getpos_err, this._options);
            },
 
-           'public save' : function (c) { this._last = c },
+           'public trace_me' : function (callback) {
+             this._obj.watchPosition(callback, this.getpos_err, this._options);
+           },
+
+           'public save' : function (p) { this._last = p },
 
            'public last' : function () { return this._last; },
 
