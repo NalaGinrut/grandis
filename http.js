@@ -16,8 +16,6 @@
   If not, see <http://www.gnu.org/licenses/>.
 */
 
-var Class = easejs.Class;
-
 var HTTP_Request =
   Class( 'HTTP_Request',
          {
@@ -53,25 +51,28 @@ var HTTP_Request =
              };
            },
 
-           // NOTE: We must pass a callback (here named 'proc') in, since AJAX
-           //       is async, so it needs a callback approach natually.
-           'private init_ajax' : function (proc) {
+           // NOTE: We must pass a callback in, since AJAX is async,
+           //       so it needs a callback approach natually.
+           'private callback' : 'undefined',
+
+           'private init_ajax' : function () {
+             var req = this;
+
              if (window.XMLHttpRequest) {
                // code for IE7+, Firefox, Chrome, Opera, Safari
                var ajax = new XMLHttpRequest();
              } else {
                // code for IE6, IE5
-               $('html').innerHTML = '<p>Sorry, I don\'t want to suppport IE6 or IE5, please upgrade your browser!</p';
+               $('html').innerHTML = '<p>Sorry, I don\'t want to suppport IE6 or IE5, please upgrade your browser!</p>';
                throw Error("Let me halt here!");
              }
+
              ajax.onreadystatechange = function() {
-               if (ajax.readyState==4 && ajax.status==200) {
-                 this._result = ajax.responseText;
-                 this.ajax_ready = true;
-                 proc && proc(this._result);
-               } else {
-                 this._result = 'undefined';
-                 this.ajax_ready = false;
+               if (4 == ajax.readyState && 200 == ajax.status) {
+                 req._result = ajax.responseText;
+                 req.ajax_ready = true;
+                 if(req.callback !== 'undefined')
+                   req.callback(req._result);
                }
              };
              
@@ -84,12 +85,22 @@ var HTTP_Request =
                  ajax.send(data2url(pdata));
                else
                  ajax.send();
+               //alert(this.callback);
                return 'Waiting for async result';
              };
            },
 
            'private clean_jsonp_tag' : function (id) {
              return $('head').removeChild(id);
+           },
+
+           'public set_callback' : function (callback) {
+             alert("yes set!");
+             this.callback = callback;
+           },
+
+           'public show_callback' : function () {
+             return this.callback;
            },
 
            'public is_ready' : function () {
@@ -113,11 +124,11 @@ var HTTP_Request =
              return this._obj(full_url, method, pdata);
            },
 
-           'public __construct' : function (mode, callback, use_cache) {
+           'public __construct' : function (mode, use_cache) {
              this.use_cache = is_defined(use_cache);
              switch (mode) {
-             case 'ajax' : this._obj = this.init_ajax(callback); break;
-             case 'jsonp' : this._obj = this.init_jsonp (); break;
+             case 'ajax' : this._obj = this.init_ajax(); break;
+             case 'jsonp' : this._obj = this.init_jsonp(); break;
              default : throw Error('HTTP_Request: invalid mode ' + mode);
              }
            }
@@ -149,15 +160,17 @@ var HTTP =
 
            'private _req' : 'undefined',
 
-           'private _init_req' : function (callback, use_cache) {
-             this._req = HTTP_Request (this.mode, callback, use_cache);
+           'private _init_req' : function (use_cache) {
+             this._req = HTTP_Request (this.mode, use_cache);
            },
 
-           'private do_request' : function (method, url, data) {
+           'private do_request' : function (method, url, data, callback) {
              var handler = HTTP_METHODS_HANDLERS[method];
              if (handler === 'undefined')
                throw Error('HTTP: method "' + method + '" is not supported!');
-             return handler(this._req, url, method, data);          
+             this._req.set_callback(callback);
+             alert(this._req.show_callback());
+             return handler(this._req, url, method, data);
            },
 
            'public set_cache' : function (val) {
@@ -168,7 +181,7 @@ var HTTP =
              return this._req.use_cache;
            },
            
-           'public __construct' : function (mode, callback, use_cache) {
+           'public __construct' : function (mode, use_cache) {
              if (typeof mode === 'undefined')
                return;
              else if ( this.is_valid_mode (mode) )
@@ -176,7 +189,7 @@ var HTTP =
              else
                throw Error('HTTP init: Invalid mode "' + mode + '"');
              
-             this._init_req(callback, use_cache);
+             this._init_req(use_cache);
            },
            
            'public is_ready' : function () {
@@ -186,7 +199,7 @@ var HTTP =
            'public get_mode' : function () { return this.mode; },
            
            //'public request' : 
-           'public get' : function (url, data) {
-             return this.do_request('get', url, data);
+           'public get' : function (url, data, callback) {
+             return this.do_request('get', url, data, callback);
            }
          } );
